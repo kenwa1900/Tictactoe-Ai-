@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TIC · TAC · TOE</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #e8ff47;
+    --accent2: #ff4757;
+    --accent3: #47b8ff;
+    --text: #f0f0ff;
+    --text-dim: #6b6b8a;
+    --x-color: #ff4757;
+    --o-color: #47b8ff;
+    --win-glow: #e8ff47;
+    --radius: 12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,71,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,71,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    animation: gridDrift 20s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(232,255,71,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes gridDrift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(48px, 48px); }
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: min(100vw, 420px);
+    padding: 24px 20px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── SCREENS ─── */
+  .screen {
+    width: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    animation: screenIn 0.35s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .screen.active { display: flex; }
+
+  @keyframes screenIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes screenOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-20px) scale(0.97); }
+  }
+
+  /* ─── LOGO ─── */
+  .logo {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .logo-title {
+    font-size: clamp(36px, 10vw, 52px);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: var(--text);
+  }
+  .logo-title span {
+    color: var(--accent);
+  }
+  .logo-dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .logo-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: dotPulse 2s ease-in-out infinite;
+  }
+  .logo-dot:nth-child(2) { animation-delay: 0.3s; background: var(--accent2); }
+  .logo-dot:nth-child(3) { animation-delay: 0.6s; background: var(--accent3); }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
+  }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    width: 100%;
+    min-height: 64px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.12s, box-shadow 0.12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.08);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .btn:hover::after { opacity: 1; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0a0f;
+    box-shadow: 0 0 0 0 rgba(232,255,71,0.4);
+    animation: primaryPulse 3s ease-in-out infinite;
+  }
+  @keyframes primaryPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,255,71,0.4); }
+    50% { box-shadow: 0 0 20px 4px rgba(232,255,71,0.15); }
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    font-size: 14px;
+    min-height: 48px;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .btn-x {
+    background: rgba(255,71,87,0.15);
+    color: var(--x-color);
+    border: 1px solid rgba(255,71,87,0.3);
+  }
+  .btn-o {
+    background: rgba(71,184,255,0.15);
+    color: var(--o-color);
+    border: 1px solid rgba(71,184,255,0.3);
+  }
+
+  .menu-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+  }
+
+  /* ─── SECTION LABEL ─── */
+  .section-label {
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  /* ─── DIFFICULTY SCREEN ─── */
+  .diff-title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .diff-sub {
+    color: var(--text-dim);
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .diff-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  .diff-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 16px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-height: 120px;
+  }
+  .diff-card:hover, .diff-card.selected {
+    border-color: var(--accent);
+    background: rgba(232,255,71,0.05);
+    transform: translateY(-2px);
+  }
+  .diff-card.selected .diff-card-name { color: var(--accent); }
+  .diff-icon { font-size: 32px; line-height: 1; }
+  .diff-card-name {
+    font-size: 18px;
+    font-weight: 700;
+    transition: color 0.2s;
+  }
+  .diff-card-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  /* ─── GAME SCREEN ─── */
+  .game-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .game-mode-badge {
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+
+  /* Turn Indicator */
+  .turn-indicator {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .turn-label {
+    font-family: 'Syne Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .turn-player {
+    font-size: 24px;
+    font-weight: 800;
+    transition: all 0.3s;
+  }
+  .turn-player.x { color: var(--x-color); }
+  .turn-player.o { color: var(--o-color); }
+  .turn-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s;
+  }
+  .turn-pill.x-turn { border-color: rgba(255,71,87,0.4); background: rgba(255,71,87,0.08); }
+  .turn-pill.o-turn { border-color: rgba(71,184,255,0.4); background: rgba(71,184,255,0.08); }
+
+  /* Score */
+  .score-bar {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+    align-items: center;
+  }
+  .score-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .score-item.x-score { border-color: rgba(255,71,87,0.25); }
+  .score-item.o-score { border-color: rgba(71,184,255,0.25); }
+  .score-player-label {
+    font-family: 'Syne Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .score-item.x-score .score-player-label { color: var(--x-color); }
+  .score-item.o-score .score-player-label { color: var(--o-color); }
+  .score-num {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    transition: all 0.3s;
+  }
+  .score-item.x-score .score-num { color: var(--x-color); }
+  .score-item.o-score .score-num { color: var(--o-color); }
+  .score-sep {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .score-draws-label {
+    font-family: 'Syne Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .score-draws-num {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-dim);
+  }
+
+  /* Board */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto 28px;
+    position: relative;
+  }
+
+  .cell {
+    aspect-ratio: 1;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(40px, 12vw, 64px);
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
+    position: relative;
+    overflow: hidden;
+    min-height: 80px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cell:hover:not(.taken) {
+    background: var(--surface2);
+    border-color: var(--text-dim);
+    transform: scale(1.03);
+  }
+  .cell.taken { cursor: default; }
+
+  .cell .mark {
+    display: inline-block;
+    animation: markIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both;
+    line-height: 1;
+  }
+  @keyframes markIn {
+    from { transform: scale(0) rotate(-20deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  .cell.x-cell { border-color: rgba(255,71,87,0.3); }
+  .cell.o-cell { border-color: rgba(71,184,255,0.3); }
+  .cell.x-cell .mark { color: var(--x-color); }
+  .cell.o-cell .mark { color: var(--o-color); }
+
+  .cell.win-cell {
+    background: rgba(232,255,71,0.12);
+    border-color: var(--win-glow) !important;
+    animation: winPulse 0.6s ease-in-out both;
+  }
+  .cell.win-cell .mark {
+    color: var(--win-glow) !important;
+    text-shadow: 0 0 20px rgba(232,255,71,0.8);
+    animation: winMarkGlow 1s ease-in-out infinite alternate;
+  }
+  @keyframes winPulse {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+  @keyframes winMarkGlow {
+    from { text-shadow: 0 0 10px rgba(232,255,71,0.5); }
+    to   { text-shadow: 0 0 30px rgba(232,255,71,1); }
+  }
+
+  /* ─── RESULT OVERLAY ─── */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .overlay.active { display: flex; }
+
+  .overlay-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s both;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .result-card {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px 32px;
+    text-align: center;
+    width: 100%;
+    max-width: 360px;
+    animation: cardIn 0.4s cubic-bezier(0.16,1,0.3,1) both;
+    overflow: hidden;
+  }
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .result-card.win-x::before { background: var(--x-color); }
+  .result-card.win-o::before { background: var(--o-color); }
+  .result-card.draw::before { background: var(--text-dim); }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: scale(0.8) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .result-emoji {
+    font-size: 56px;
+    margin-bottom: 12px;
+    animation: emojiIn 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
+  }
+  @keyframes emojiIn {
+    from { transform: scale(0) rotate(-30deg); }
+    to   { transform: scale(1) rotate(0deg); }
+  }
+
+  .result-title {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+  }
+  .result-card.win-x .result-title { color: var(--x-color); }
+  .result-card.win-o .result-title { color: var(--o-color); }
+  .result-card.draw .result-title { color: var(--text-dim); }
+
+  .result-sub {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 32px;
+    animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.25s both;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1) 0.3s both;
+  }
+
+  /* ─── BACK BTN ─── */
+  .back-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'Syne Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 8px 0;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  /* Score bump animation */
+  @keyframes scoreBump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+  .score-bump { animation: scoreBump 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+
+  /* Bot thinking */
+  .thinking-dots {
+    display: none;
+    gap: 4px;
+    align-items: center;
+  }
+  .thinking-dots.active { display: flex; }
+  .thinking-dot {
+    width: 5px; height: 5px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    animation: thinkDot 1.2s ease-in-out infinite;
+  }
+  .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes thinkDot {
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50% { transform: scale(1.4); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ─── MENU SCREEN ─── -->
+  <div class="screen active" id="menuScreen">
+    <div class="logo">
+      <div class="logo-title">TIC<span>·</span>TAC<span>·</span>TOE</div>
+      <div class="logo-dots">
+        <div class="logo-dot"></div>
+        <div class="logo-dot"></div>
+        <div class="logo-dot"></div>
+      </div>
+    </div>
+    <div class="section-label">Choose your battle</div>
+    <div class="menu-btns">
+      <button class="btn btn-primary" id="vsHumanBtn">
+        <span>👥</span> Play vs Friend
+      </button>
+      <button class="btn btn-secondary" id="vsBotBtn">
+        <span>🤖</span> Play vs Bot
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── DIFFICULTY SCREEN ─── -->
+  <div class="screen" id="diffScreen">
+    <button class="back-btn" id="diffBackBtn">← Back</button>
+    <br>
+    <div class="diff-title">Choose Difficulty</div>
+    <div class="diff-sub">How hard do you want it?</div>
+    <div class="diff-cards">
+      <div class="diff-card" id="easyCard" data-diff="easy">
+        <div class="diff-icon">🎲</div>
+        <div class="diff-card-name">Easy</div>
+        <div class="diff-card-desc">Bot plays randomly. A fair challenge.</div>
+      </div>
+      <div class="diff-card" id="hardCard" data-diff="hard">
+        <div class="diff-icon">🧠</div>
+        <div class="diff-card-name">Hard</div>
+        <div class="diff-card-desc">Minimax AI. Impossible to beat.</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="startBotGame" disabled>Start Game</button>
+  </div>
+
+  <!-- ─── GAME SCREEN ─── -->
+  <div class="screen" id="gameScreen">
+    <div class="game-header">
+      <button class="back-btn" id="gameBackBtn">← Menu</button>
+      <div class="game-mode-badge" id="modeBadge">vs FRIEND</div>
+    </div>
+
+    <div class="turn-indicator">
+      <div class="turn-pill" id="turnPill">
+        <span class="turn-label">Turn</span>
+        <span class="turn-player x" id="turnPlayer">X</span>
+        <div class="thinking-dots" id="thinkingDots">
+          <div class="thinking-dot"></div>
+          <div class="thinking-dot"></div>
+          <div class="thinking-dot"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="score-bar">
+      <div class="score-item x-score">
+        <div class="score-player-label" id="xLabel">X</div>
+        <div class="score-num" id="scoreX">0</div>
+      </div>
+      <div class="score-sep">
+        <div class="score-draws-label">draws</div>
+        <div class="score-draws-num" id="scoreDraws">0</div>
+      </div>
+      <div class="score-item o-score">
+        <div class="score-player-label" id="oLabel">O</div>
+        <div class="score-num" id="scoreO">0</div>
+      </div>
+    </div>
+
+    <div class="board" id="board">
+      <div class="cell" data-index="0"></div>
+      <div class="cell" data-index="1"></div>
+      <div class="cell" data-index="2"></div>
+      <div class="cell" data-index="3"></div>
+      <div class="cell" data-index="4"></div>
+      <div class="cell" data-index="5"></div>
+      <div class="cell" data-index="6"></div>
+      <div class="cell" data-index="7"></div>
+      <div class="cell" data-index="8"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── RESULT OVERLAY ─── -->
+<div class="overlay" id="resultOverlay">
+  <div class="overlay-backdrop"></div>
+  <div class="result-card" id="resultCard">
+    <div class="result-emoji" id="resultEmoji">🏆</div>
+    <div class="result-title" id="resultTitle">X Wins!</div>
+    <div class="result-sub" id="resultSub">Player X takes the round</div>
+    <div class="result-btns">
+      <button class="btn btn-primary" id="playAgainBtn">Play Again</button>
+      <button class="btn btn-ghost" id="resultMenuBtn">Back to Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const state = {
+  mode: 'human',       // 'human' | 'bot'
+  difficulty: 'easy',  // 'easy' | 'hard'
+  board: Array(9).fill(null),
+  current: 'X',
+  scores: { X: 0, O: 0, draws: 0 },
+  gameOver: false,
+  botThinking: false,
+  selectedDiff: null,
+};
+
+const WIN_LINES = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+];
+
+// ─── DOM REFS ────────────────────────────────────────────────────────────────
+const screens = {
+  menu: document.getElementById('menuScreen'),
+  diff: document.getElementById('diffScreen'),
+  game: document.getElementById('gameScreen'),
+};
+const overlay = document.getElementById('resultOverlay');
+const resultCard = document.getElementById('resultCard');
+const cells = document.querySelectorAll('.cell');
+const turnPill = document.getElementById('turnPill');
+const turnPlayer = document.getElementById('turnPlayer');
+const thinkingDots = document.getElementById('thinkingDots');
+const scoreX = document.getElementById('scoreX');
+const scoreO = document.getElementById('scoreO');
+const scoreDraws = document.getElementById('scoreDraws');
+const modeBadge = document.getElementById('modeBadge');
+const xLabel = document.getElementById('xLabel');
+const oLabel = document.getElementById('oLabel');
+
+// ─── SCREEN NAV ──────────────────────────────────────────────────────────────
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  const target = screens[name];
+  target.style.animation = 'none';
+  requestAnimationFrame(() => {
+    target.style.animation = '';
+    target.classList.add('active');
+  });
+}
+
+// ─── MENU ────────────────────────────────────────────────────────────────────
+document.getElementById('vsHumanBtn').addEventListener('click', () => {
+  state.mode = 'human';
+  startGame();
+});
+
+document.getElementById('vsBotBtn').addEventListener('click', () => {
+  state.mode = 'bot';
+  showScreen('diff');
+});
+
+document.getElementById('diffBackBtn').addEventListener('click', () => showScreen('menu'));
+
+// Difficulty selection
+document.querySelectorAll('.diff-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    state.difficulty = card.dataset.diff;
+    state.selectedDiff = card.dataset.diff;
+    document.getElementById('startBotGame').disabled = false;
+  });
+});
+
+document.getElementById('startBotGame').addEventListener('click', () => {
+  if (state.selectedDiff) startGame();
+});
+
+// ─── GAME START ──────────────────────────────────────────────────────────────
+function startGame() {
+  state.board = Array(9).fill(null);
+  state.current = 'X';
+  state.gameOver = false;
+  state.botThinking = false;
+  state.scores = { X: 0, O: 0, draws: 0 };
+
+  // Update UI labels
+  if (state.mode === 'bot') {
+    modeBadge.textContent = `vs BOT · ${state.difficulty.toUpperCase()}`;
+    xLabel.textContent = 'YOU';
+    oLabel.textContent = 'BOT';
+  } else {
+    modeBadge.textContent = 'vs FRIEND';
+    xLabel.textContent = 'X';
+    oLabel.textContent = 'O';
+  }
+
+  updateScoreUI();
+  renderBoard();
+  updateTurnUI();
+  showScreen('game');
+}
+
+document.getElementById('gameBackBtn').addEventListener('click', () => {
+  overlay.classList.remove('active');
+  // Reset diff selection
+  document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('startBotGame').disabled = true;
+  state.selectedDiff = null;
+  showScreen('menu');
+});
+
+// ─── BOARD RENDER ────────────────────────────────────────────────────────────
+function renderBoard(winCells = []) {
+  cells.forEach((cell, i) => {
+    cell.innerHTML = '';
+    cell.className = 'cell';
+    const val = state.board[i];
+    if (val) {
+      cell.classList.add('taken', `${val.toLowerCase()}-cell`);
+      const mark = document.createElement('span');
+      mark.className = 'mark';
+      mark.textContent = val;
+      cell.appendChild(mark);
+    }
+    if (winCells.includes(i)) cell.classList.add('win-cell');
+  });
+}
+
+function updateTurnUI() {
+  turnPlayer.textContent = state.current;
+  turnPlayer.className = `turn-player ${state.current.toLowerCase()}`;
+  turnPill.className = `turn-pill ${state.current.toLowerCase()}-turn`;
+  thinkingDots.classList.remove('active');
+}
+
+function updateScoreUI() {
+  scoreX.textContent = state.scores.X;
+  scoreO.textContent = state.scores.O;
+  scoreDraws.textContent = state.scores.draws;
+}
+
+// ─── CELL CLICK ──────────────────────────────────────────────────────────────
+cells.forEach(cell => {
+  cell.addEventListener('click', () => {
+    const idx = parseInt(cell.dataset.index);
+    if (state.gameOver || state.board[idx] || state.botThinking) return;
+    if (state.mode === 'bot' && state.current === 'O') return;
+    makeMove(idx);
+  });
+});
+
+function makeMove(idx) {
+  state.board[idx] = state.current;
+  const result = checkGame();
+  renderBoard(result?.line || []);
+  if (result) {
+    endGame(result);
+    return;
+  }
+  state.current = state.current === 'X' ? 'O' : 'X';
+  updateTurnUI();
+  if (state.mode === 'bot' && state.current === 'O' && !state.gameOver) {
+    botMove();
+  }
+}
+
+// ─── BOT ─────────────────────────────────────────────────────────────────────
+function botMove() {
+  state.botThinking = true;
+  thinkingDots.classList.add('active');
+  const delay = 300 + Math.random() * 200;
+  setTimeout(() => {
+    state.botThinking = false;
+    const idx = state.difficulty === 'hard' ? bestMoveMinimax() : randomMove();
+    if (idx !== -1) makeMove(idx);
+  }, delay);
+}
+
+function randomMove() {
+  const empty = state.board.map((v,i) => v === null ? i : -1).filter(i => i !== -1);
+  return empty.length ? empty[Math.floor(Math.random() * empty.length)] : -1;
+}
+
+function bestMoveMinimax() {
+  let bestScore = -Infinity, bestMove = -1;
+  for (let i = 0; i < 9; i++) {
+    if (!state.board[i]) {
+      state.board[i] = 'O';
+      const s = minimax(state.board, 0, false, -Infinity, Infinity);
+      state.board[i] = null;
+      if (s > bestScore) { bestScore = s; bestMove = i; }
+    }
+  }
+  return bestMove;
+}
+
+function minimax(board, depth, isMax, alpha, beta) {
+  const res = checkWinner(board);
+  if (res === 'O') return 10 - depth;
+  if (res === 'X') return depth - 10;
+  if (board.every(c => c)) return 0;
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (!board[i]) {
+        board[i] = 'O';
+        best = Math.max(best, minimax(board, depth+1, false, alpha, beta));
+        board[i] = null;
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break;
+      }
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (!board[i]) {
+        board[i] = 'X';
+        best = Math.min(best, minimax(board, depth+1, true, alpha, beta));
+        board[i] = null;
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break;
+      }
+    }
+    return best;
+  }
+}
+
+// ─── WIN CHECK ───────────────────────────────────────────────────────────────
+function checkWinner(board) {
+  for (const [a,b,c] of WIN_LINES) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
+  }
+  return null;
+}
+
+function checkGame() {
+  for (const line of WIN_LINES) {
+    const [a,b,c] = line;
+    if (state.board[a] && state.board[a] === state.board[b] && state.board[a] === state.board[c]) {
+      return { winner: state.board[a], line };
+    }
+  }
+  if (state.board.every(c => c)) return { winner: null, line: [] };
+  return null;
+}
+
+// ─── GAME END ────────────────────────────────────────────────────────────────
+function endGame(result) {
+  state.gameOver = true;
+  const { winner } = result;
+
+  if (winner) {
+    state.scores[winner]++;
+    const scoreEl = winner === 'X' ? scoreX : scoreO;
+    scoreEl.textContent = state.scores[winner];
+    scoreEl.classList.remove('score-bump');
+    requestAnimationFrame(() => scoreEl.classList.add('score-bump'));
+  } else {
+    state.scores.draws++;
+    scoreDraws.textContent = state.scores.draws;
+  }
+
+  setTimeout(() => showResult(result), 550);
+}
+
+function showResult({ winner }) {
+  const card = resultCard;
+  const emoji = document.getElementById('resultEmoji');
+  const title = document.getElementById('resultTitle');
+  const sub = document.getElementById('resultSub');
+
+  card.className = 'result-card';
+
+  if (winner === 'X') {
+    card.classList.add('win-x');
+    emoji.textContent = '🎉';
+    title.textContent = 'X Wins!';
+    sub.textContent = state.mode === 'bot' ? 'You beat the bot!' : 'Player X takes the round';
+  } else if (winner === 'O') {
+    card.classList.add('win-o');
+    emoji.textContent = state.mode === 'bot' ? '🤖' : '🎉';
+    title.textContent = 'O Wins!';
+    sub.textContent = state.mode === 'bot' ? 'The bot wins this round' : 'Player O takes the round';
+  } else {
+    card.classList.add('draw');
+    emoji.textContent = '🤝';
+    title.textContent = "It's a Draw!";
+    sub.textContent = 'Well played by both sides';
+  }
+
+  // Reset animation
+  card.style.animation = 'none';
+  requestAnimationFrame(() => { card.style.animation = ''; overlay.classList.add('active'); });
+}
+
+// ─── RESULT BUTTONS ──────────────────────────────────────────────────────────
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+  overlay.classList.remove('active');
+  const scores = { ...state.scores };
+  state.board = Array(9).fill(null);
+  state.current = 'X';
+  state.gameOver = false;
+  state.botThinking = false;
+  state.scores = scores;
+  updateScoreUI();
+  renderBoard();
+  updateTurnUI();
+});
+
+document.getElementById('resultMenuBtn').addEventListener('click', () => {
+  overlay.classList.remove('active');
+  document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('startBotGame').disabled = true;
+  state.selectedDiff = null;
+  showScreen('menu');
+});
+</script>
+</body>
+</html>
